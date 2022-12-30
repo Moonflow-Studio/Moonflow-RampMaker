@@ -36,6 +36,7 @@ namespace Moonflow
         private Color[] _tempColor;
         private float[] _tempPoint;
         private Texture2D _previewTex;
+        private Texture2D _oldTex;
         private bool _isLinked = false;
 
         private static readonly int COLOR_ARRAY = Shader.PropertyToID("_ColorArray");
@@ -162,7 +163,10 @@ namespace Moonflow
                             if (GUILayout.Button(_isLinked ? "Break Link" : "Link to target property"))
                             {
                                 if (_isLinked) DestroyLink();
-                                else _isLinked = true;
+                                else
+                                {
+                                    StartLink();
+                                }
                             }
                         }
                     }
@@ -198,6 +202,12 @@ namespace Moonflow
                 }
                 SetGradient();
             }
+        }
+
+        private void StartLink()
+        {
+            _isLinked = true;
+            _oldTex = targetMaterial.GetTexture(propertyName) as Texture2D;
         }
 
         private void UpdateRibbonNum()
@@ -280,7 +290,7 @@ namespace Moonflow
         {
             _isLinked = false;
             if(!string.IsNullOrEmpty(propertyName))
-                targetMaterial.SetTexture(propertyName, Texture2D.whiteTexture);
+                targetMaterial.SetTexture(propertyName, _oldTex!=null ? _oldTex : Texture2D.whiteTexture);
         }
         public void InitData()
         {
