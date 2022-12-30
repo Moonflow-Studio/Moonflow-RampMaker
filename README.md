@@ -1,6 +1,8 @@
 # MFRampMaker
 ■■Finished■■A total solution of making ramp texture for your game developing. You can use this to create multiple ribbon of gradient color to read by one texture conveniently, and the plugin also support to preview the final result of effect on target material on the real time.
 
+[Realtime link debugging on Moonflow Ramp Maker - YouTube](https://www.youtube.com/watch?v=7q9NxYDcCi4)
+
 ![](https://raw.githubusercontent.com/Reguluz/ImageBed/master/default_panning1.png)
 
 After install the plugin, you can find it on Menu bar - Moonflow - Tools - Art - MFRampMaker to open an instance panel.
