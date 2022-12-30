@@ -20,6 +20,8 @@ namespace Moonflow
 
         public bool lerpMode;
         private bool _lerpMode;
+        public bool gammaMode;
+        private bool _gammaMode;
         public int ribbonNum;
         private List<string> texNames;
         private int targetPropertySerial;
@@ -40,6 +42,7 @@ namespace Moonflow
         private static readonly int POINT_ARRAY = Shader.PropertyToID("_PointArray");
         private static readonly int REAL_NUM = Shader.PropertyToID("_RealNum");
         private static readonly string LERP_MODE = "_LERP_MODE";
+        private static readonly string GAMMA_MODE = "_GAMMA_MODE";
 
         [MenuItem("Moonflow/Tools/Art/MFRampMaker")]
         public static void ShowWindow()
@@ -83,31 +86,45 @@ namespace Moonflow
         private void OnGUI()
         {
             EditorGUI.BeginChangeCheck();
-            
             using (new EditorGUILayout.HorizontalScope())
             {
                 using (new EditorGUILayout.VerticalScope())
                 {
                     using (new EditorGUILayout.VerticalScope("box"))
                     {
-                        EditorGUIUtility.labelWidth = 50;
+                        EditorGUIUtility.labelWidth = 100;
                         EditorGUIUtility.fieldWidth = 50;
-                        EditorGUILayout.PrefixLabel("参数");
-                        lerpMode = EditorGUILayout.ToggleLeft("渐变模式", lerpMode);
-                        if (_lerpMode != lerpMode)
+                        EditorGUILayout.PrefixLabel("Properties");
+                        lerpMode = EditorGUILayout.ToggleLeft("Mixing Mode", lerpMode);
+                        gammaMode = EditorGUILayout.ToggleLeft("Gamma Mode", gammaMode);
+                        if (_previewMat != null)
                         {
-                            _lerpMode = lerpMode;
-                            if (_lerpMode)
+                            if (_lerpMode != lerpMode)
                             {
-                                Shader.EnableKeyword(LERP_MODE);
+                                _lerpMode = lerpMode;
+                                if (_lerpMode)
+                                {
+                                    _previewMat.EnableKeyword(LERP_MODE);
+                                }
+                                else
+                                {
+                                    _previewMat.DisableKeyword(LERP_MODE);
+                                }
                             }
-                            else
+                            if (_gammaMode != gammaMode)
                             {
-                                Shader.DisableKeyword(LERP_MODE);
+                                _gammaMode = gammaMode;
+                                if (_gammaMode)
+                                {
+                                    _previewMat.EnableKeyword(GAMMA_MODE);
+                                }
+                                else
+                                {
+                                    _previewMat.DisableKeyword(GAMMA_MODE);
+                                }
                             }
                         }
-
-                        ribbonNum = EditorGUILayout.IntSlider("条带数量", ribbonNum, 1, 8);
+                        ribbonNum = EditorGUILayout.IntSlider("Ribbon Num", ribbonNum, 1, 8);
                         if (_ribbons.Count != ribbonNum)
                         {
                             UpdateRibbonNum();
@@ -117,14 +134,14 @@ namespace Moonflow
                         {
                             _ribbons[i] = EditorGUILayout.GradientField((i + 1).ToString(), _ribbons[i]);
                         }
-                        if (GUILayout.Button("读取配置"))
+                        if (GUILayout.Button("Read Config"))
                         {
-                            string path = EditorUtility.OpenFilePanel("读取", Application.dataPath, "asset");
+                            string path = EditorUtility.OpenFilePanel("Read", Application.dataPath, "asset");
                             ReadConfig(path);
                         }
-                        if (GUILayout.Button("保存配置"))
+                        if (GUILayout.Button("Save Config"))
                         {
-                            string path = EditorUtility.SaveFilePanel("保存到", Application.dataPath, "GradientConfig", "asset");
+                            string path = EditorUtility.SaveFilePanel("Save As", Application.dataPath, "GradientConfig", "asset");
                             SaveConfig(path);
                         }
                     }
@@ -135,14 +152,14 @@ namespace Moonflow
                             EditorGUILayout.ObjectField(targetMaterial, typeof(Material));
                             if (!autoLinkMode)
                             {
-                                targetPropertySerial = EditorGUILayout.Popup("目标属性", targetPropertySerial, texNames.ToArray());
+                                targetPropertySerial = EditorGUILayout.Popup("Target property", targetPropertySerial, texNames.ToArray());
                                 propertyName = texNames[targetPropertySerial];
                             }
                             else
                             {
-                                EditorGUILayout.LabelField("目标属性", propertyName);
+                                EditorGUILayout.LabelField("Target Property", propertyName);
                             }
-                            if (GUILayout.Button(_isLinked ? "断开链接" : "链接"))
+                            if (GUILayout.Button(_isLinked ? "Break Link" : "Link to target property"))
                             {
                                 if (_isLinked) DestroyLink();
                                 else _isLinked = true;
@@ -153,9 +170,10 @@ namespace Moonflow
                 }
                 using (new EditorGUILayout.VerticalScope("box"))
                 {
-                    EditorGUILayout.PrefixLabel("贴图预览设置");
-                    _level = EditorGUILayout.IntSlider("贴图分辨率级别", _level, 0, 4);
-                    EditorGUILayout.LabelField("当前分辨率", Mathf.Pow(2, 5+_level).ToString(CultureInfo.CurrentCulture));
+                    EditorGUIUtility.labelWidth = 150;
+                    EditorGUILayout.PrefixLabel("Texture Preview Settings");
+                    _level = EditorGUILayout.IntSlider("Resolution Preview Level", _level, 0, 4);
+                    EditorGUILayout.LabelField("Current Size(pixels)", Mathf.Pow(2, 5+_level).ToString(CultureInfo.CurrentCulture));
 
                     if (_rt!=null && _rt.IsCreated())
                     {
@@ -163,9 +181,9 @@ namespace Moonflow
                         rect.width = 200;
                         EditorGUI.DrawPreviewTexture(rect, _rt);
                     }
-                    if (GUILayout.Button("保存贴图"))
+                    if (GUILayout.Button("Save Texture As"))
                     {
-                        string path = EditorUtility.SaveFilePanel("保存到", Application.dataPath, "RampTex", "TGA");
+                        string path = EditorUtility.SaveFilePanel("Save to", Application.dataPath, "RampTex", "TGA");
                         SaveTex(path);
                     }
                 }

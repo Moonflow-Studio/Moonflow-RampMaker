@@ -14,6 +14,7 @@ Shader"Hidden/Moonflow/RampMaker"
         {
             HLSLPROGRAM
             #pragma shader_feature _LERP_MODE
+            #pragma shader_feature _GAMMA_MODE
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/core.hlsl"
@@ -58,7 +59,11 @@ Shader"Hidden/Moonflow/RampMaker"
                     }
                 }
                 left = max(0, right - 1);
+            #ifdef _GAMMA_MODE
+                return pow(lerp(_ColorArray[num * 10 + left], _ColorArray[num * 10 + right], linearstep(u, _PointArray[num * 10 + left], _PointArray[num * 10 + right])), 2.2);
+            #else
                 return lerp(_ColorArray[num * 10 + left], _ColorArray[num * 10 + right], linearstep(u, _PointArray[num * 10 + left], _PointArray[num * 10 + right]));
+            #endif
             }
 
             v2f vert (appdata v)
