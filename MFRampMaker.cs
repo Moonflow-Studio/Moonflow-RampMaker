@@ -320,7 +320,7 @@ namespace Moonflow
         {
             ReleaseOldRT();
             _size = (int)Mathf.Pow(2, 5 + _level);
-            _rt = new RenderTexture(_size, _size, 0, RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
+            _rt = new RenderTexture(_size, _ribbons.Count*2, 0, RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
             _rt.name = "preview";
             _rt.enableRandomWrite = true;
             _rt.Create();

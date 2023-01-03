@@ -81,10 +81,13 @@ Shader"Hidden/Moonflow/RampMaker"
                 if(_RealNum>1) bandwidth = 1 / (_RealNum - 1);
                 #endif
                 float y = 1 - i.uv.y;
+                float yLevel = y/bandwidth;
+                float band = 0.5/bandwidth;
+                float halfband = band * 0.5;
                 #ifdef _LERP_MODE
-                return lerp(GetGradient(floor(y/bandwidth), i.uv.x), GetGradient(ceil(y/bandwidth), i.uv.x), frac(y/bandwidth));
+                return lerp(GetGradient(floor(yLevel)/* + halfband*/, i.uv.x), GetGradient(ceil(yLevel)/*+ halfband*/, i.uv.x), frac(yLevel));
                 #else
-                return GetGradient(floor(y/bandwidth), i.uv.x);
+                return GetGradient(floor(yLevel), i.uv.x);
                 #endif
             }
             ENDHLSL
