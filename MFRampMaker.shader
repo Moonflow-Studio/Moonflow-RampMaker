@@ -15,6 +15,8 @@ Shader"Hidden/Moonflow/RampMaker"
             HLSLPROGRAM
             #pragma shader_feature _LERP_MODE
             #pragma shader_feature _GAMMA_MODE
+            #pragma shader_feature _QUAD_MODE
+            #pragma shader_feature _LOOP_MODE
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/core.hlsl"
@@ -59,10 +61,11 @@ Shader"Hidden/Moonflow/RampMaker"
                     }
                 }
                 left = max(0, right - 1);
+                float4 resultColor = lerp(_ColorArray[num * 10 + left], _ColorArray[num * 10 + right], linearstep(u, _PointArray[num * 10 + left], _PointArray[num * 10 + right]));
             #ifdef _GAMMA_MODE
-                return pow(lerp(_ColorArray[num * 10 + left], _ColorArray[num * 10 + right], linearstep(u, _PointArray[num * 10 + left], _PointArray[num * 10 + right])), 2.2);
+                return pow(resultColor, 2.2);
             #else
-                return lerp(_ColorArray[num * 10 + left], _ColorArray[num * 10 + right], linearstep(u, _PointArray[num * 10 + left], _PointArray[num * 10 + right]));
+                return resultColor;
             #endif
             }
 
@@ -76,18 +79,27 @@ Shader"Hidden/Moonflow/RampMaker"
 
             half4 frag (v2f i) : SV_Target
             {
-                float bandwidth = 1 / _RealNum;
-                #ifdef _LERP_MODE
-                // if(_RealNum>1) bandwidth = 1 / (_RealNum - 1);
-                #endif
+                int realNum = _RealNum;
+            #if defined(_LERP_MODE) && !defined (_LOOP_MODE)
+                if(_RealNum>1) realNum = realNum - 1;
+            #endif
+                // float uvBandwidth = 1 / realNum;
                 float y = 1 - i.uv.y;
-                float yLevel = y/bandwidth;
-                #ifdef _LERP_MODE
-                int next = ceil(yLevel);
-                return lerp(GetGradient(floor(yLevel), i.uv.x), GetGradient((next > _RealNum - 1) ? 0 : next, i.uv.x), frac(yLevel) * 2 - 1);
-                #else
-                return GetGradient(floor(yLevel), i.uv.x);
+                float yLevel = y * realNum;
+            #ifdef _LERP_MODE
+                    int next = ceil(yLevel);
+                #ifdef _LOOP_MODE
+                    next = (next > _RealNum - 1) ? 0 : next;
                 #endif
+
+                    float balance = frac(yLevel);
+                #ifndef _QUAD_MODE
+                    balance = balance * 2 - 1;
+                #endif
+                return lerp(GetGradient(floor(yLevel), i.uv.x), GetGradient(next, i.uv.x), saturate(balance));
+            #else
+                return GetGradient(floor(yLevel), i.uv.x);
+            #endif
             }
             ENDHLSL
         }

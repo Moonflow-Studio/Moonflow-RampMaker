@@ -22,6 +22,10 @@ namespace Moonflow
         private bool _lerpMode;
         public bool gammaMode;
         private bool _gammaMode;
+        public bool quadMode;
+        private bool _quadMode;
+        public bool loopMode;
+        private bool _loopMode;
         public int ribbonNum;
         private List<string> texNames;
         private int targetPropertySerial;
@@ -44,13 +48,15 @@ namespace Moonflow
         private static readonly int REAL_NUM = Shader.PropertyToID("_RealNum");
         private static readonly string LERP_MODE = "_LERP_MODE";
         private static readonly string GAMMA_MODE = "_GAMMA_MODE";
+        private static readonly string QUAD_MODE = "_QUAD_MODE";
+        private static readonly string LOOP_MODE = "_LOOP_MODE";
 
-        [MenuItem("Moonflow/Tools/Art/MFRampMaker")]
+        [MenuItem("Moonflow/Tools/Art/MFRampMaker &#T")]
         public static void ShowWindow()
         {
             Ins = GetWindow<MFRampMaker>();
-            Ins.minSize = new Vector2(200, 200);
-            Ins.maxSize = new Vector2(400, 300);
+            Ins.minSize = new Vector2(500, 300);
+            // Ins.maxSize = new Vector2(400, 300);
             Ins.InitData();
             Ins.Show();
         }
@@ -86,6 +92,7 @@ namespace Moonflow
 
         private void OnGUI()
         {
+            bool changeTexSize = false;
             EditorGUI.BeginChangeCheck();
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -96,8 +103,10 @@ namespace Moonflow
                         EditorGUIUtility.labelWidth = 100;
                         EditorGUIUtility.fieldWidth = 50;
                         EditorGUILayout.PrefixLabel("Properties");
-                        lerpMode = EditorGUILayout.ToggleLeft("Mixing Mode", lerpMode);
-                        gammaMode = EditorGUILayout.ToggleLeft("Gamma Mode", gammaMode);
+                        lerpMode = EditorGUILayout.ToggleLeft("Lerp Ribbon", lerpMode);
+                        gammaMode = EditorGUILayout.ToggleLeft("Gamma Color", gammaMode);
+                        quadMode = EditorGUILayout.ToggleLeft("Quad Tex", quadMode);
+                        loopMode = EditorGUILayout.ToggleLeft("Loop Vertical", loopMode);
                         if (_previewMat != null)
                         {
                             if (_lerpMode != lerpMode)
@@ -122,6 +131,32 @@ namespace Moonflow
                                 else
                                 {
                                     _previewMat.DisableKeyword(GAMMA_MODE);
+                                }
+                            }
+
+                            if (_quadMode != quadMode)
+                            {
+                                _quadMode = quadMode;
+                                if (_quadMode)
+                                {
+                                    _previewMat.EnableKeyword(QUAD_MODE);
+                                }
+                                else
+                                {
+                                    _previewMat.DisableKeyword(QUAD_MODE);
+                                }
+                                changeTexSize = true;
+                            }
+                            if (_loopMode != loopMode)
+                            {
+                                _loopMode = loopMode;
+                                if (_loopMode)
+                                {
+                                    _previewMat.EnableKeyword(LOOP_MODE);
+                                }
+                                else
+                                {
+                                    _previewMat.DisableKeyword(LOOP_MODE);
                                 }
                             }
                         }
@@ -174,7 +209,8 @@ namespace Moonflow
                 }
                 using (new EditorGUILayout.VerticalScope("box"))
                 {
-                    EditorGUIUtility.labelWidth = 150;
+                    EditorGUIUtility.labelWidth = 120;
+                    EditorGUIUtility.fieldWidth = 50;
                     EditorGUILayout.PrefixLabel("Texture Preview Settings");
                     _level = EditorGUILayout.IntSlider("Resolution Preview Level", _level, 0, 4);
                     EditorGUILayout.LabelField("Current Size(pixels)", Mathf.Pow(2, 5+_level).ToString(CultureInfo.CurrentCulture));
@@ -196,7 +232,7 @@ namespace Moonflow
             
             if (EditorGUI.EndChangeCheck())
             {
-                if (_size != (int)Mathf.Pow(2, 5 + _level))
+                if (_size != (int)Mathf.Pow(2, 5 + _level) || changeTexSize)
                 {
                     ReNewRT();
                 }
@@ -219,7 +255,10 @@ namespace Moonflow
 
             while (_ribbons.Count < ribbonNum)
             {
-                _ribbons.Add(new Gradient());
+                var newGrad = new Gradient();
+                var last = _ribbons[^1];
+                newGrad.SetKeys(last.colorKeys, last.alphaKeys);
+                _ribbons.Add(newGrad);
             }
         }
         public void SaveTex(string path)
@@ -320,7 +359,7 @@ namespace Moonflow
         {
             ReleaseOldRT();
             _size = (int)Mathf.Pow(2, 5 + _level);
-            _rt = new RenderTexture(_size, _ribbons.Count*2, 0, RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
+            _rt = new RenderTexture(_size, _quadMode ? _size : _ribbons.Count * 2, 0, RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
             _rt.name = "preview";
             _rt.enableRandomWrite = true;
             _rt.Create();
