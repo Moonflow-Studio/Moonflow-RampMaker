@@ -39,6 +39,6 @@ You can also select a editable material, right click on it's inspector panel to 
 
 ### Texture Preview Settings
 
-1. **Resolution Preview Level** - Set the texture size level, which based on the power of 2. You can see the result size of texture on the second line. We support size from 32x32 pixels to 512x512 pixels (level 0 to 4)
+1. **Resolution Preview Level** - Set the texture size level, which based on the power of 2. You can see the result size of texture on the second line. We support size from 32 pixels per ribbon to 512 pixels per ribbon(level 0 to 4), and each ribbon has 2 pixels height.
 2. **Save Texture As** - After you finish debugging all the settings, you can tap this to save your texture in your project as an PNG file. Notice that we made a limit that you can only save the texture under "_Assets/_" path.
 
