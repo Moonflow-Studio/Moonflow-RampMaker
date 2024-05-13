@@ -292,6 +292,7 @@ namespace Moonflow
                     targetMaterial.SetTexture(propertyName, savedTex);
                 }
 
+                _oldTex = savedTex;
                 _isLinked = false;
             }
         }

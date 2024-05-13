@@ -19,7 +19,7 @@ Shader"Hidden/Moonflow/RampMaker"
             #pragma shader_feature _LOOP_MODE
             #pragma vertex vert
             #pragma fragment frag
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct appdata
             {
