@@ -36,7 +36,7 @@ namespace MoonflowShading.Editor
         {
             EditorGUI.indentLevel++;
             editor.TexturePropertySingleLine(label, prop);
-            if (GUILayout.Button("Make"))
+            if (GUILayout.Button(MFToolsLang.isCN ? "制作":"Make"))
             {
                 MFRampMaker.ShowWindow(_mat, prop.name);
             }

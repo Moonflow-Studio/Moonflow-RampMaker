@@ -76,11 +76,11 @@ namespace Moonflow
                     {
                         EditorGUIUtility.labelWidth = 100;
                         EditorGUIUtility.fieldWidth = 50;
-                        EditorGUILayout.PrefixLabel("Properties");
-                        lerpMode = EditorGUILayout.ToggleLeft("Lerp Ribbon", lerpMode);
-                        gammaMode = EditorGUILayout.ToggleLeft("Gamma Color", gammaMode);
-                        quadMode = EditorGUILayout.ToggleLeft("Quad Tex", quadMode);
-                        loopMode = EditorGUILayout.ToggleLeft("Loop Vertical", loopMode);
+                        EditorGUILayout.PrefixLabel(MFToolsLang.isCN?"参数":"Properties");
+                        lerpMode = EditorGUILayout.ToggleLeft(MFToolsLang.isCN?"条带插值":"Lerp Ribbon", lerpMode);
+                        gammaMode = EditorGUILayout.ToggleLeft(MFToolsLang.isCN?"Gamma颜色":"Gamma Color", gammaMode);
+                        quadMode = EditorGUILayout.ToggleLeft(MFToolsLang.isCN?"方形贴图":"Quad Tex", quadMode);
+                        loopMode = EditorGUILayout.ToggleLeft(MFToolsLang.isCN?"纵轴":"Loop Vertical", loopMode);
                         if (_previewMat != null)
                         {
                             if (_lerpMode != lerpMode)
@@ -121,18 +121,18 @@ namespace Moonflow
                             }
                         }
 
-                        ribbonNum = EditorGUILayout.IntSlider("Ribbon Num", ribbonNum, 1, 8);
+                        ribbonNum = EditorGUILayout.IntSlider(MFToolsLang.isCN?"条带数量":"Ribbon Num", ribbonNum, 1, 8);
                         if (_ribbons.Count != ribbonNum) UpdateRibbonNum();
 
                         for (var i = 0; i < _ribbons.Count; i++)
                             _ribbons[i] = EditorGUILayout.GradientField((i + 1).ToString(), _ribbons[i]);
-                        if (GUILayout.Button("Read Config"))
+                        if (GUILayout.Button(MFToolsLang.isCN?"读配置":"Read Config"))
                         {
                             var path = EditorUtility.OpenFilePanel("Read", Application.dataPath, "asset");
                             ReadConfig(path);
                         }
 
-                        if (GUILayout.Button("Save Config"))
+                        if (GUILayout.Button(MFToolsLang.isCN?"保存配置":"Save Config"))
                         {
                             var path = EditorUtility.SaveFilePanel("Save As", Application.dataPath, "GradientConfig",
                                 "asset");
@@ -147,16 +147,16 @@ namespace Moonflow
                         EditorGUILayout.ObjectField(targetMaterial, typeof(Material), false);
                         if (!autoLinkMode && !ReferenceEquals(targetMaterial, null))
                         {
-                            targetPropertySerial = EditorGUILayout.Popup("Target property", targetPropertySerial,
+                            targetPropertySerial = EditorGUILayout.Popup(MFToolsLang.isCN?"目标参数":"Target property", targetPropertySerial,
                                 texNames.ToArray());
                             propertyName = texNames[targetPropertySerial];
                         }
                         else
                         {
-                            EditorGUILayout.LabelField("Target Property", propertyName);
+                            EditorGUILayout.LabelField(MFToolsLang.isCN?"目标参数":"Target Property", propertyName);
                         }
 
-                        if (GUILayout.Button(_isLinked ? "Break Link" : "Link to target property"))
+                        if (GUILayout.Button(_isLinked ? (MFToolsLang.isCN?"断开链接":"Break Link") : (MFToolsLang.isCN?"链接到目标参数":"Link to target property")))
                         {
                             if (_isLinked) DestroyLink();
                             else
@@ -170,9 +170,9 @@ namespace Moonflow
                 {
                     EditorGUIUtility.labelWidth = 120;
                     EditorGUIUtility.fieldWidth = 50;
-                    EditorGUILayout.PrefixLabel("Texture Preview Settings");
-                    _level = EditorGUILayout.IntSlider("Resolution Preview Level", _level, 0, 4);
-                    EditorGUILayout.LabelField("Current Size(pixels)",
+                    EditorGUILayout.PrefixLabel(MFToolsLang.isCN?"贴图预览设置":"Texture Preview Settings");
+                    _level = EditorGUILayout.IntSlider(MFToolsLang.isCN?"分辨率预览级别":"Resolution Preview Level", _level, 0, 4);
+                    EditorGUILayout.LabelField(MFToolsLang.isCN?"当前尺寸（像素）":"Current Size(pixels)",
                         Mathf.Pow(2, 5 + _level).ToString(CultureInfo.CurrentCulture));
 
                     if (_rt != null && _rt.IsCreated())
