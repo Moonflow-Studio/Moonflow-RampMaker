@@ -205,7 +205,7 @@ namespace Moonflow
             if (_isLinked) targetMaterial.SetTexture(propertyName, _rt);
         }
 
-        [MenuItem("Tools/Moonflow/Tools/Art/MFRampMaker &#T")]
+        [MenuItem("Tools/Moonflow/Tools/Art/RampMaker &#T")]
         public static void ShowWindow()
         {
             Ins = GetWindow<MFRampMaker>();
