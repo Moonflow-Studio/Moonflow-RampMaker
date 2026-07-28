@@ -54,18 +54,75 @@ namespace Moonflow
         private int targetPropertySerial;
         private List<string> texNames;
 
+        private void OnEnable()
+        {
+            // 反序列化恢复路径下 private 字段不保留，必须在这里初始化
+            // 避免 Unity 重启后 OnGUI 第一次访问 _ribbons 时 NRE
+            EnsureInit();
+        }
+
         private void OnDisable()
         {
             DestroyLink();
             isShow = false;
             RenderTexture.active = null;
-            _rt.Release();
-            DestroyImmediate(_previewMat);
+            if (_rt != null)
+            {
+                if (_rt.IsCreated()) _rt.Release();
+                _rt = null;
+            }
+            if (_previewMat != null)
+            {
+                DestroyImmediate(_previewMat);
+                _previewMat = null;
+            }
+        }
+
+        /// <summary>
+        /// 幂等初始化。保证 _ribbons / texNames / _previewMat / _rt 至少存在有效实例。
+        /// 重复调用不会泄漏旧资源（_rt / _previewMat 走 Release/Destroy 后重建）。
+        /// </summary>
+        private void EnsureInit()
+        {
+            isShow = true;
+            if (_ribbons == null || _ribbons.Count == 0)
+            {
+                _ribbons = new List<Gradient> { CreateDefaultGradient() };
+                ribbonNum = Mathf.Max(1, ribbonNum);
+            }
+            if (texNames == null) texNames = new List<string>();
+
+            if (_previewMat == null)
+            {
+                var s = Shader.Find("Hidden/Moonflow/RampMaker");
+                if (s == null)
+                {
+                    Debug.LogError("[MFRampMaker] Hidden/Moonflow/RampMaker shader 未找到。检查 shader 是否在项目内。");
+                    return;
+                }
+                _previewMat = new Material(s);
+            }
+
+            if (_rt == null) NewRT();
+            SetGradient();
+        }
+
+        private static Gradient CreateDefaultGradient()
+        {
+            var g = new Gradient();
+            g.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+            );
+            return g;
         }
 
 
         private void OnGUI()
         {
+            // 双保险：极端情况下（如 OnEnable 抛异常）确保数据有效
+            EnsureInit();
+
             var changeTexSize = false;
             EditorGUI.BeginChangeCheck();
             using (new EditorGUILayout.HorizontalScope())
@@ -147,9 +204,19 @@ namespace Moonflow
                         EditorGUILayout.ObjectField(targetMaterial, typeof(Material), false);
                         if (!autoLinkMode && !ReferenceEquals(targetMaterial, null))
                         {
-                            targetPropertySerial = EditorGUILayout.Popup(MFToolsLang.isCN?"目标参数":"Target property", targetPropertySerial,
-                                texNames.ToArray());
-                            propertyName = texNames[targetPropertySerial];
+                            // 防御：texNames 为空时（材质未刷新属性）跳过 Popup，避免越界
+                            if (texNames == null || texNames.Count == 0)
+                            {
+                                EditorGUILayout.LabelField(MFToolsLang.isCN?"目标参数":"Target Property",
+                                    MFToolsLang.isCN?"<无贴图属性>":"<No Tex Property>");
+                            }
+                            else
+                            {
+                                targetPropertySerial = Mathf.Clamp(targetPropertySerial, 0, texNames.Count - 1);
+                                targetPropertySerial = EditorGUILayout.Popup(MFToolsLang.isCN?"目标参数":"Target property", targetPropertySerial,
+                                    texNames.ToArray());
+                                propertyName = texNames[targetPropertySerial];
+                            }
                         }
                         else
                         {
@@ -202,7 +269,9 @@ namespace Moonflow
         {
             if (_rt != null) UpdateRT();
 
-            if (_isLinked) targetMaterial.SetTexture(propertyName, _rt);
+            // 防御：targetMaterial 可能被用户在外部销毁；_rt 也可能未初始化
+            if (_isLinked && targetMaterial != null && !targetMaterial.Equals(null) && _rt != null && !string.IsNullOrEmpty(propertyName))
+                targetMaterial.SetTexture(propertyName, _rt);
         }
 
         [MenuItem("Tools/Moonflow/Tools/Art/RampMaker &#T")]
@@ -211,7 +280,7 @@ namespace Moonflow
             Ins = GetWindow<MFRampMaker>();
             Ins.minSize = new Vector2(500, 300);
             // Ins.maxSize = new Vector2(400, 300);
-            Ins.InitData();
+            Ins.EnsureInit();
             Ins.Show();
         }
 
@@ -221,7 +290,7 @@ namespace Moonflow
             if (Ins == null)
             {
                 Ins = GetWindow<MFRampMaker>();
-                Ins.InitData();
+                Ins.EnsureInit();
                 Ins.Show();
             }
             Ins.targetMaterial = menuCommand.context as Material;
@@ -234,7 +303,7 @@ namespace Moonflow
             if (Ins == null)
             {
                 Ins = GetWindow<MFRampMaker>();
-                Ins.InitData();
+                Ins.EnsureInit();
                 Ins.Show();
             }
 
@@ -247,25 +316,57 @@ namespace Moonflow
 
         private void StartLink()
         {
+            // 防御：未选 material / property 时拒绝链接，避免后续 NRE
+            if (targetMaterial == null || targetMaterial.Equals(null))
+            {
+                Debug.LogWarning("[MFRampMaker] 未指定 Target Material，无法链接。");
+                return;
+            }
+            if (string.IsNullOrEmpty(propertyName))
+            {
+                Debug.LogWarning("[MFRampMaker] 未指定 Target Property，无法链接。");
+                return;
+            }
             _isLinked = true;
             _oldTex = targetMaterial.GetTexture(propertyName) as Texture2D;
         }
 
         private void UpdateRibbonNum()
         {
+            // 防御：ribbonNum 下限 1（与 IntSlider 一致）
+            ribbonNum = Mathf.Clamp(ribbonNum, 1, 8);
+
             while (_ribbons.Count > ribbonNum) _ribbons.RemoveAt(_ribbons.Count - 1);
 
             while (_ribbons.Count < ribbonNum)
             {
                 var newGrad = new Gradient();
-                var last = _ribbons[^1];
-                newGrad.SetKeys(last.colorKeys, last.alphaKeys);
+                if (_ribbons.Count > 0)
+                {
+                    // 复制上一条渐变作为起点
+                    var last = _ribbons[^1];
+                    newGrad.SetKeys(last.colorKeys, last.alphaKeys);
+                }
+                else
+                {
+                    // 首条：默认白色渐变
+                    newGrad.SetKeys(
+                        new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                        new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+                    );
+                }
                 _ribbons.Add(newGrad);
             }
         }
 
         public void SaveTex(string path)
         {
+            // 防御：_rt 未初始化时直接拒绝
+            if (_rt == null)
+            {
+                Debug.LogWarning("[MFRampMaker] RenderTexture 未初始化，无法保存。");
+                return;
+            }
             RenderTexture.active = _rt;
             _previewTex = new Texture2D(_rt.width, _rt.height, TextureFormat.RGB24, false);
             _previewTex.ReadPixels(new Rect(0, 0, _rt.width, _rt.height), 0, 0);
@@ -289,7 +390,9 @@ namespace Moonflow
                 {
                     savedTex.wrapMode = TextureWrapMode.Clamp;
                     AssetDatabase.SaveAssets();
-                    targetMaterial.SetTexture(propertyName, savedTex);
+                    // 防御：targetMaterial 可能在链接期间被外部销毁
+                    if (targetMaterial != null && !targetMaterial.Equals(null) && !string.IsNullOrEmpty(propertyName))
+                        targetMaterial.SetTexture(propertyName, savedTex);
                 }
 
                 _oldTex = savedTex;
@@ -299,6 +402,12 @@ namespace Moonflow
 
         public void SaveConfig(string path)
         {
+            // 防御：用户在 SaveFilePanel 中点击取消
+            if (string.IsNullOrEmpty(path) || !path.StartsWith(Application.dataPath))
+            {
+                Debug.LogWarning("[MFRampMaker] SaveConfig 取消或路径非法，未保存。");
+                return;
+            }
             var asset = CreateInstance<MFMultiGradientAsset>();
             var temp = new Gradient[_ribbons.Count];
             for (var i = 0; i < temp.Length; i++)
@@ -313,9 +422,19 @@ namespace Moonflow
 
         public void ReadConfig(string path)
         {
-            if (string.IsNullOrEmpty(path)) return;
+            if (string.IsNullOrEmpty(path) || !path.StartsWith(Application.dataPath))
+            {
+                Debug.LogWarning("[MFRampMaker] ReadConfig 取消或路径非法，未读取。");
+                return;
+            }
             var asset = AssetDatabase.LoadAssetAtPath("Assets" + path.Substring(Application.dataPath.Length),
                 typeof(MFMultiGradientAsset)) as MFMultiGradientAsset;
+            // 防御：路径错 / 文件非 MFMultiGradientAsset 时 asset 为 null
+            if (asset == null || asset.multiGradients == null || asset.multiGradients.Length == 0)
+            {
+                Debug.LogWarning("[MFRampMaker] 配置文件无效或为空。");
+                return;
+            }
             ribbonNum = asset.multiGradients.Length;
             _ribbons = new List<Gradient>(asset.multiGradients.ToArray());
         }
@@ -328,22 +447,21 @@ namespace Moonflow
 
         private void DestroyLink()
         {
+            if (!_isLinked) return;
             _isLinked = false;
-            if (!string.IsNullOrEmpty(propertyName))
+            // 防御：targetMaterial 可能被外部销毁（OnDisable 时尤其常见）
+            if (targetMaterial != null && !targetMaterial.Equals(null) && !string.IsNullOrEmpty(propertyName))
+            {
                 targetMaterial.SetTexture(propertyName, _oldTex != null ? _oldTex : Texture2D.whiteTexture);
+            }
+            _oldTex = null;
         }
 
         public void InitData()
         {
-            isShow = true;
-            _ribbons = new List<Gradient>();
-            _ribbons.Add(new Gradient());
-            texNames = new List<string>();
-            // _cmd = new CommandBuffer();
-            var s = Shader.Find("Hidden/Moonflow/RampMaker");
-            _previewMat = new Material(s);
-            NewRT();
-            SetGradient();
+            // 历史入口：保留为 EnsureInit 的别名，确保旧调用方仍可工作
+            // 真正的初始化逻辑在 EnsureInit 中，幂等且 null-safe
+            EnsureInit();
         }
 
         private void ReNewRT()
@@ -361,7 +479,10 @@ namespace Moonflow
         {
             ReleaseOldRT();
             _size = (int)Mathf.Pow(2, 5 + _level);
-            _rt = new RenderTexture(_size, _quadMode ? _size : _ribbons.Count * 2, 0, RenderTextureFormat.Default,
+            // 防御：_ribbons 为空时高度至少 2，避免 0 高度 RT
+            var ribbonsCount = _ribbons != null ? Mathf.Max(1, _ribbons.Count) : 1;
+            var height = _quadMode ? _size : ribbonsCount * 2;
+            _rt = new RenderTexture(_size, height, 0, RenderTextureFormat.Default,
                 RenderTextureReadWrite.sRGB);
             _rt.name = "preview";
             _rt.enableRandomWrite = true;
@@ -370,11 +491,17 @@ namespace Moonflow
 
         private void UpdateRT()
         {
-            if (_rt.IsCreated()) Graphics.Blit(Texture2D.whiteTexture, _rt, _previewMat);
+            if (_rt != null && _rt.IsCreated() && _previewMat != null)
+                Graphics.Blit(Texture2D.whiteTexture, _rt, _previewMat);
         }
 
         private void SetGradient()
         {
+            // 防御：_previewMat 可能为 null（shader 缺失时 EnsureInit 提前 return）
+            if (_previewMat == null) return;
+            // 防御：_ribbons 在极端情况下可能为 null
+            if (_ribbons == null || _ribbons.Count == 0) return;
+
             _tempColor = new Color[80];
             _tempPoint = new float[80];
             for (var i = 0; i < _ribbons.Count; i++) SetGradientToArray(_ribbons[i], i);
@@ -385,6 +512,9 @@ namespace Moonflow
 
         private void SetGradientToArray(Gradient source, int serial)
         {
+            // 防御：source 或 colorKeys 为空时跳过
+            if (source == null || source.colorKeys == null || source.colorKeys.Length == 0) return;
+
             var count = source.colorKeys.Length;
             var offset = 0;
             var outsideOffset = serial * 10;
